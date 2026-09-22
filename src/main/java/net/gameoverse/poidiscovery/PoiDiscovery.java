@@ -2,12 +2,16 @@ package net.gameoverse.poidiscovery;
 
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.level.block.CropBlock;
 import net.minecraft.world.level.saveddata.maps.MapBanner;
 
 /**
@@ -38,8 +42,25 @@ public class PoiDiscovery implements ModInitializer {
       PoiRegistry.touch();
       PlayerDiscoveries.touch();
 
+      ModItems.register();
+
       CommandRegistrationCallback.EVENT.register((dispatcher, buildContext, selection) -> PoiCommands.register(dispatcher));
       ServerTickEvents.END_SERVER_TICK.register(this::onServerTick);
+
+      ServerLivingEntityEvents.AFTER_DEATH.register((entity, damageSource) -> {
+         if (damageSource.getEntity() instanceof ServerPlayer && entity.level() instanceof ServerLevel level) {
+            RumorDrops.rollKill(level, entity.getX(), entity.getY(), entity.getZ());
+         }
+      });
+
+      PlayerBlockBreakEvents.AFTER.register((world, player, pos, state, blockEntity) -> {
+         if (world instanceof ServerLevel level) {
+            boolean matureCrop = state.getBlock() instanceof CropBlock crop && crop.isMaxAge(state);
+            if (matureCrop || !(state.getBlock() instanceof CropBlock)) {
+               RumorDrops.rollBlockBreak(level, pos, matureCrop);
+            }
+         }
+      });
    }
 
    private void onServerTick(MinecraftServer server) {

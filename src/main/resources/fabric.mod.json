@@ -17,6 +17,9 @@
       "net.gameoverse.poidiscovery.PoiDiscovery"
     ]
   },
+  "mixins": [
+    "gameoverse_poi_discovery.mixins.json"
+  ],
   "depends": {
     "fabricloader": ">=0.19.5",
     "fabric-api": "*",

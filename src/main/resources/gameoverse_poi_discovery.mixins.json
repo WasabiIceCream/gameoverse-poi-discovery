@@ -1,0 +1,12 @@
+{
+  "required": true,
+  "package": "net.gameoverse.poidiscovery.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "mixins": [
+    "FishingHookMixin",
+    "RandomizableContainerMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

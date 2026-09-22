@@ -27,7 +27,16 @@ public final class PoiCommands {
             .then(Commands.literal("register").executes(PoiCommands::registerAtFeet))
             .then(Commands.literal("remove").executes(PoiCommands::removeAtFeet))
             .then(Commands.literal("list").executes(PoiCommands::list))
+            .then(Commands.literal("forget").executes(PoiCommands::forgetAll))
       );
+   }
+
+   /** Debug/testing only - clears every POI the calling player has discovered. */
+   private static int forgetAll(com.mojang.brigadier.context.CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+      ServerPlayer player = context.getSource().getPlayerOrException();
+      PlayerDiscoveries.forgetAll(player);
+      context.getSource().sendSuccess(() -> Component.literal("Forgot all discovered POIs."), true);
+      return 1;
    }
 
    private static int registerAtFeet(com.mojang.brigadier.context.CommandContext<CommandSourceStack> context) throws CommandSyntaxException {

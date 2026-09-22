@@ -1,5 +1,22 @@
 {
   "gameoverse_poi_discovery.discovered": "Discovered: %s",
   "gameoverse_poi_discovery.discovered_no_map": "Discovered: %s (get a MapStitch Atlas covering this area to see it marked)",
-  "gameoverse_poi_discovery.unnamed": "an unnamed point of interest"
+  "gameoverse_poi_discovery.unnamed": "an unnamed point of interest",
+
+  "item.gameoverse_poi_discovery.rumor": "Rumor",
+  "gameoverse_poi_discovery.rumor.nothing": "You've already tracked down everything you've heard rumors of. This one leads nowhere.",
+  "gameoverse_poi_discovery.rumor.hint": "A traveler's tale speaks of something %s, %s from here.",
+
+  "gameoverse_poi_discovery.direction.n": "to the north",
+  "gameoverse_poi_discovery.direction.ne": "to the northeast",
+  "gameoverse_poi_discovery.direction.e": "to the east",
+  "gameoverse_poi_discovery.direction.se": "to the southeast",
+  "gameoverse_poi_discovery.direction.s": "to the south",
+  "gameoverse_poi_discovery.direction.sw": "to the southwest",
+  "gameoverse_poi_discovery.direction.w": "to the west",
+  "gameoverse_poi_discovery.direction.nw": "to the northwest",
+
+  "gameoverse_poi_discovery.distance.close": "not far",
+  "gameoverse_poi_discovery.distance.moderate": "a fair distance",
+  "gameoverse_poi_discovery.distance.far": "a long way"
 }

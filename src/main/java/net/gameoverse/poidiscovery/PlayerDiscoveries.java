@@ -35,4 +35,9 @@ public final class PlayerDiscoveries {
    public static void markDiscovered(ServerPlayer player, String poiKey) {
       ((AttachmentTarget) player).getAttachedOrCreate(DISCOVERED, HashSet::new).add(poiKey);
    }
+
+   /** Debug/testing helper - clears every POI this player has discovered. */
+   public static void forgetAll(ServerPlayer player) {
+      ((AttachmentTarget) player).getAttachedOrCreate(DISCOVERED, HashSet::new).clear();
+   }
 }
