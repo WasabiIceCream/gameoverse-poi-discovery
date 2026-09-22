@@ -7,15 +7,19 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 
 /**
- * A registered point of interest: just a position + dimension. Deliberately doesn't duplicate the
- * banner's name/color - those already live on the real banner block entity in the world (read via
- * vanilla's own {@code MapBanner.fromWorld()} at discovery time), so there's nothing to keep in
- * sync if someone re-names or re-dyes the banner later.
+ * A registered point of interest: position, dimension, a display name, and a real vanilla map
+ * decoration icon (its {@code MapDecorationTypes} registry id, e.g. "minecraft:woodland_mansion").
+ * Fully data-driven - no real block/entity anywhere in the world backs this, unlike the original
+ * banner-based design (see docs/current-state.md for why that was dropped: the user wanted POIs
+ * completely invisible and non-interactable, which a real placed banner can never be).
  */
-public record PoiEntry(BlockPos pos, ResourceKey<Level> dimension) {
+public record PoiEntry(BlockPos pos, ResourceKey<Level> dimension, String name, String icon) {
    public static final Codec<PoiEntry> CODEC = RecordCodecBuilder.create(
       instance -> instance.group(
-            BlockPos.CODEC.fieldOf("pos").forGetter(PoiEntry::pos), Level.RESOURCE_KEY_CODEC.fieldOf("dimension").forGetter(PoiEntry::dimension)
+            BlockPos.CODEC.fieldOf("pos").forGetter(PoiEntry::pos),
+            Level.RESOURCE_KEY_CODEC.fieldOf("dimension").forGetter(PoiEntry::dimension),
+            Codec.STRING.fieldOf("name").forGetter(PoiEntry::name),
+            Codec.STRING.fieldOf("icon").forGetter(PoiEntry::icon)
          )
          .apply(instance, PoiEntry::new)
    );

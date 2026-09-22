@@ -12,24 +12,28 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.level.block.CropBlock;
-import net.minecraft.world.level.saveddata.maps.MapBanner;
 
 /**
- * Named, colored banners as discoverable points of interest. A banner's own name/color (real
- * vanilla {@code MapBanner} data, read live from the world) becomes a labeled map marker the
- * moment any player gets close enough - independently for every player, not just whoever's
- * first, and without needing to be holding a map at the time. See README.md for the full design
- * rationale and known limitations.
+ * Major landmark structures (see {@link StructurePois}) as discoverable points of interest,
+ * auto-registered as players explore (see {@link StructureScanner}) - completely invisible and
+ * non-interactable, since a POI has no physical presence in the world at all (name/icon live
+ * entirely in {@link PoiEntry}, marked on a player's map via {@link MapMarking}, not a real
+ * banner block). The moment any player gets close enough, it's discovered permanently for them -
+ * independently for every player, not just whoever's first, and without needing to be holding a
+ * map at the time. Already-discovered POIs are re-marked every check interval, not just once at
+ * the moment of discovery, so a map added to the Atlas later still picks up everything already
+ * found. See README.md for the full design rationale.
  */
 public class PoiDiscovery implements ModInitializer {
    /** How close a player needs to get to trigger discovery. */
-   private static final double DISCOVERY_RADIUS = 24.0;
+   private static final double DISCOVERY_RADIUS = 200.0;
    private static final double DISCOVERY_RADIUS_SQ = DISCOVERY_RADIUS * DISCOVERY_RADIUS;
 
    /** Proximity is checked this often, not every tick - discovery isn't latency-sensitive. */
    private static final int CHECK_INTERVAL_TICKS = 20;
 
    private int tickCounter;
+   private final StructureScanner structureScanner = new StructureScanner();
 
    @Override
    public void onInitialize() {
@@ -64,37 +68,45 @@ public class PoiDiscovery implements ModInitializer {
    }
 
    private void onServerTick(MinecraftServer server) {
+      structureScanner.tick(server);
+
       if (++tickCounter < CHECK_INTERVAL_TICKS) {
          return;
       }
       tickCounter = 0;
 
-      for (PoiEntry poi : PoiRegistry.all(server.overworld())) {
-         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+      var allPois = PoiRegistry.all(server.overworld());
+      for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+         var discovered = PlayerDiscoveries.discovered(player);
+
+         for (PoiEntry poi : allPois) {
             if (!player.level().dimension().equals(poi.dimension())) {
                continue;
             }
-            if (PlayerDiscoveries.hasDiscovered(player, poi.key())) {
-               continue;
-            }
-            if (player.position().distanceToSqr(poi.pos().getX() + 0.5, poi.pos().getY() + 0.5, poi.pos().getZ() + 0.5) > DISCOVERY_RADIUS_SQ) {
+
+            if (discovered.contains(poi.key())) {
+               // Already discovered - keep re-marking it on the player's current maps rather than
+               // only ever marking once at the moment of discovery. A map added to the Atlas
+               // *after* discovering something would otherwise never pick up that marker at all.
+               MapMarking.markOnAllMaps(player, poi);
                continue;
             }
 
-            discover(player, poi);
+            if (player.position().distanceToSqr(poi.pos().getX() + 0.5, poi.pos().getY() + 0.5, poi.pos().getZ() + 0.5) <= DISCOVERY_RADIUS_SQ) {
+               discover(player, poi);
+            }
          }
       }
    }
 
    private void discover(ServerPlayer player, PoiEntry poi) {
       PlayerDiscoveries.markDiscovered(player, poi.key());
-      boolean marked = MapMarking.markOnAnyCoveringMap(player, poi.pos());
-
-      MapBanner banner = MapBanner.fromWorld(player.level(), poi.pos());
-      Component name = banner != null && banner.name().isPresent() ? banner.name().get() : Component.translatable("gameoverse_poi_discovery.unnamed");
+      boolean marked = MapMarking.markOnAllMaps(player, poi);
 
       player.sendSystemMessage(
-         Component.translatable(marked ? "gameoverse_poi_discovery.discovered" : "gameoverse_poi_discovery.discovered_no_map", name)
+         Component.translatable(
+            marked ? "gameoverse_poi_discovery.discovered" : "gameoverse_poi_discovery.discovered_no_map", Component.literal(poi.name())
+         )
       );
       player.level().playSound(null, player.blockPosition(), SoundEvents.PLAYER_LEVELUP, SoundSource.PLAYERS, 0.6F, 1.4F);
    }

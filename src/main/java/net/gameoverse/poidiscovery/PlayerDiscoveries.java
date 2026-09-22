@@ -32,6 +32,10 @@ public final class PlayerDiscoveries {
       return ((AttachmentTarget) player).getAttachedOrCreate(DISCOVERED, HashSet::new).contains(poiKey);
    }
 
+   public static Set<String> discovered(ServerPlayer player) {
+      return ((AttachmentTarget) player).getAttachedOrCreate(DISCOVERED, HashSet::new);
+   }
+
    public static void markDiscovered(ServerPlayer player, String poiKey) {
       ((AttachmentTarget) player).getAttachedOrCreate(DISCOVERED, HashSet::new).add(poiKey);
    }
