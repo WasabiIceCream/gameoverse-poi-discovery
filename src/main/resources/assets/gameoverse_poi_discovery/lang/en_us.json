@@ -1,0 +1,5 @@
+{
+  "gameoverse_poi_discovery.discovered": "Discovered: %s",
+  "gameoverse_poi_discovery.discovered_no_map": "Discovered: %s (get a MapStitch Atlas covering this area to see it marked)",
+  "gameoverse_poi_discovery.unnamed": "an unnamed point of interest"
+}
