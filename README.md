@@ -294,13 +294,37 @@ structure-shape fix above:
   than felt right. Reduced `DISCOVERY_RADIUS` to 100 blocks, the user's
   own choice among a few options.
 
+## Icon still duplicated after the "nearest tile only" fix
+
+The fix above stopped *adding* the decoration to any tile but the
+nearest one - but a decoration is real, additive state (both the
+item's own target-decoration component and the map's own live
+rendered decoration), and nothing about "just stop adding it" ever
+removes what earlier passes (from before that fix) had already
+written onto every other tile. The label text disappeared (that's the
+separate minimap-only fix from earlier), but the icon itself - which
+renders independently of the name - stayed duplicated exactly as
+before, confirmed by the user immediately after testing the previous
+fix.
+
+**Fix**: exposed vanilla's private `MapItemSavedData#removeDecoration`
+via the same `MapItemSavedDataAccessor` mixin already used for
+`addDecoration`, and added `MapMarking#removeMarker` - strips the
+item's own `MAP_DECORATIONS` entry and calls the live removal, mirror
+image of how marking adds both. `markOnAllMaps` now does a real second
+pass: the winning (nearest) tile gets marked as before, and every
+other candidate tile gets an explicit removal check, so a POI that
+used to be nearest to a different tile (the Atlas grew, or a
+bounding box got corrected) can't leave a permanent stale duplicate
+behind.
+
 ## Status
 
 Working, fully validated in-game end to end: automatic structure
 detection, 100-block proximity discovery that respects a structure's
 real shape and requires an unobstructed line of sight, a single
 rendered marker per POI (on the one map tile actually closest to it,
-not duplicated across the mosaic) on the player's Atlas whether carried
-or worn as a Trinkets accessory, surviving leaving/returning and a
-server restart, plus the Rumor item's hint system. Local-only so far,
-not yet pushed to production.
+actively cleaned off any tile that isn't) on the player's Atlas whether
+carried or worn as a Trinkets accessory, surviving leaving/returning
+and a server restart, plus the Rumor item's hint system. Local-only so
+far, not yet pushed to production.

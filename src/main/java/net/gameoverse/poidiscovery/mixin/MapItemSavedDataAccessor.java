@@ -40,4 +40,7 @@ public interface MapItemSavedDataAccessor {
    @Mutable
    @Accessor("unlimitedTracking")
    void gameoverse$setUnlimitedTracking(boolean value);
+
+   @Invoker("removeDecoration")
+   void gameoverse$removeDecoration(String key);
 }

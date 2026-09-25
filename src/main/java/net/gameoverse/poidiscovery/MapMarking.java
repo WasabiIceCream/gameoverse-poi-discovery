@@ -99,19 +99,23 @@ public final class MapMarking {
          atlasStacks.addAll(TrinketAtlasLookup.getEquippedAtlases(player, atlasItem.get()));
       }
 
-      ItemStack nearestAtlas = null;
-      List<ItemStack> nearestAtlasMaps = null;
+      record AtlasMaps(ItemStack atlas, List<ItemStack> maps) {
+      }
+      List<AtlasMaps> candidates = new ArrayList<>();
+      for (ItemStack atlasStack : atlasStacks) {
+         BundleContents contents = atlasStack.getOrDefault(DataComponents.BUNDLE_CONTENTS, BundleContents.EMPTY);
+         if (!contents.isEmpty()) {
+            candidates.add(new AtlasMaps(atlasStack, contents.itemCopyStream().toList()));
+         }
+      }
+
+      AtlasMaps nearest = null;
       int nearestIndex = -1;
       double bestDistSq = Double.MAX_VALUE;
       boolean anyMaps = false;
 
-      for (ItemStack atlasStack : atlasStacks) {
-         BundleContents contents = atlasStack.getOrDefault(DataComponents.BUNDLE_CONTENTS, BundleContents.EMPTY);
-         if (contents.isEmpty()) {
-            continue;
-         }
-
-         List<ItemStack> maps = contents.itemCopyStream().toList();
+      for (AtlasMaps candidate : candidates) {
+         List<ItemStack> maps = candidate.maps();
          for (int i = 0; i < maps.size(); i++) {
             ItemStack mapStack = maps.get(i);
             if (!mapStack.has(DataComponents.MAP_ID)) {
@@ -130,41 +134,76 @@ public final class MapMarking {
             double distSq = dx * dx + dz * dz;
             if (distSq < bestDistSq) {
                bestDistSq = distSq;
-               nearestAtlas = atlasStack;
-               nearestAtlasMaps = maps;
+               nearest = candidate;
                nearestIndex = i;
             }
          }
       }
 
-      if (nearestAtlas == null) {
+      if (nearest == null) {
          return anyMaps;
       }
 
-      List<ItemStackTemplate> rebuilt = new ArrayList<>();
-      boolean changed = false;
-      for (int i = 0; i < nearestAtlasMaps.size(); i++) {
-         ItemStack mapStack = nearestAtlasMaps.get(i);
-         if (i == nearestIndex) {
-            // The item's own target-decoration entry survives a server restart (it's a real
-            // persisted data component), but the live MapItemSavedData's renderable decoration is
-            // an in-memory-only field that doesn't - so convertToVisibleDecoration has to run every
-            // time regardless of whether the item side already matches, or a POI already marked
-            // before a restart would silently stop rendering until something about it changed.
-            // addDecoration is itself idempotent, so this is safe to call unconditionally; only the
-            // (comparatively expensive, and disruptive to MapStitch's active-view tracking - see
-            // this class's own doc comment) bundle rewrite below stays gated on alreadyMarked.
-            convertToVisibleDecoration(level, mapStack, poi, iconType.get());
-            if (!alreadyMarked(mapStack, poi, iconType.get())) {
-               MapItemSavedData.addTargetDecoration(mapStack, poi.pos(), poi.key(), iconType.get());
+      // Every OTHER map still needs an explicit removal pass, not just "stop adding" - a map's
+      // target-decoration entry (on the item) and its actually-rendered decoration (on the map's
+      // own MapItemSavedData) are both real, additive state that never clears itself just because
+      // this method stops calling addDecoration for it. Left alone, a POI that used to be nearest
+      // to a different tile (this Atlas grew, or the structure scanner corrected a bounding box)
+      // would leave a permanent stale duplicate on that old tile forever.
+      for (AtlasMaps candidate : candidates) {
+         List<ItemStackTemplate> rebuilt = new ArrayList<>();
+         boolean changed = false;
+         boolean isWinner = candidate == nearest;
+         List<ItemStack> maps = candidate.maps();
+         for (int i = 0; i < maps.size(); i++) {
+            ItemStack mapStack = maps.get(i);
+            if (isWinner && i == nearestIndex) {
+               // The item's own target-decoration entry survives a server restart (it's a real
+               // persisted data component), but the live MapItemSavedData's renderable decoration
+               // is an in-memory-only field that doesn't - so convertToVisibleDecoration has to run
+               // every time regardless of whether the item side already matches, or a POI already
+               // marked before a restart would silently stop rendering until something about it
+               // changed. addDecoration is itself idempotent, so this is safe to call
+               // unconditionally; only the (comparatively expensive, and disruptive to MapStitch's
+               // active-view tracking - see this class's own doc comment) bundle rewrite below
+               // stays gated on alreadyMarked.
+               convertToVisibleDecoration(level, mapStack, poi, iconType.get());
+               if (!alreadyMarked(mapStack, poi, iconType.get())) {
+                  MapItemSavedData.addTargetDecoration(mapStack, poi.pos(), poi.key(), iconType.get());
+                  changed = true;
+               }
+            } else if (mapStack.has(DataComponents.MAP_ID) && removeMarker(level, mapStack, poi)) {
                changed = true;
             }
+            rebuilt.add(ItemStackTemplate.fromNonEmptyStack(mapStack));
          }
-         rebuilt.add(ItemStackTemplate.fromNonEmptyStack(mapStack));
+
+         if (changed) {
+            candidate.atlas().set(DataComponents.BUNDLE_CONTENTS, new BundleContents(rebuilt));
+         }
       }
 
-      if (changed) {
-         nearestAtlas.set(DataComponents.BUNDLE_CONTENTS, new BundleContents(rebuilt));
+      return true;
+   }
+
+   /** Removes this POI's marker (item-level target decoration and live rendered decoration alike)
+    *  from one map, if present. Returns true if there was anything to remove. */
+   private static boolean removeMarker(ServerLevel level, ItemStack mapStack, PoiEntry poi) {
+      MapDecorations decorations = mapStack.getOrDefault(DataComponents.MAP_DECORATIONS, MapDecorations.EMPTY);
+      if (!decorations.decorations().containsKey(poi.key())) {
+         return false;
+      }
+
+      var without = new java.util.LinkedHashMap<>(decorations.decorations());
+      without.remove(poi.key());
+      mapStack.set(DataComponents.MAP_DECORATIONS, new MapDecorations(without));
+
+      MapId mapId = mapStack.get(DataComponents.MAP_ID);
+      if (mapId != null) {
+         MapItemSavedData mapData = level.getMapData(mapId);
+         if (mapData != null) {
+            ((MapItemSavedDataAccessor) mapData).gameoverse$removeDecoration(poi.key());
+         }
       }
       return true;
    }
