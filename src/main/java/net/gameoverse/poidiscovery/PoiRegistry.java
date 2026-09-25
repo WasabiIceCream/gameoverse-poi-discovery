@@ -9,7 +9,9 @@ import net.fabricmc.fabric.api.attachment.v1.AttachmentRegistry;
 import net.fabricmc.fabric.api.attachment.v1.AttachmentTarget;
 import net.fabricmc.fabric.api.attachment.v1.AttachmentType;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.Level;
 
 /**
  * The world's registered points of interest, keyed by {@link PoiEntry#key()}. Stored as a single
@@ -56,6 +58,23 @@ public final class PoiRegistry {
 
    public static boolean remove(ServerLevel level, String key) {
       return registry(level).remove(key) != null;
+   }
+
+   /**
+    * Bulk-removes every POI registered for one dimension. Needed for a real scenario, not just
+    * theoretical: deleting and regenerating a dimension's own save folder (done once already, for
+    * the Nether biome-dilution fix) leaves every POI the structure scanner had already found there
+    * stale - this registry is a separate persistent attachment on the overworld, entirely unrelated
+    * to that dimension's own region files, so wiping the dimension never touches it. A stale entry
+    * doesn't just linger harmlessly: it still passes discovery's proximity/line-of-sight checks
+    * against a real, physical structure that may no longer exist anywhere near that position in the
+    * regenerated terrain.
+    */
+   public static int removeAllInDimension(ServerLevel level, ResourceKey<Level> dimension) {
+      Map<String, PoiEntry> map = registry(level);
+      List<String> toRemove = map.values().stream().filter(e -> e.dimension().equals(dimension)).map(PoiEntry::key).toList();
+      toRemove.forEach(map::remove);
+      return toRemove.size();
    }
 
    public static List<PoiEntry> all(ServerLevel level) {

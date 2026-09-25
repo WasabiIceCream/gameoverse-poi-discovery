@@ -40,6 +40,12 @@ public final class PlayerDiscoveries {
       ((AttachmentTarget) player).getAttachedOrCreate(DISCOVERED, HashSet::new).add(poiKey);
    }
 
+   /** Un-discovers a single POI for one player - used when a stale/phantom registry entry is
+    *  purged, so a player who'd already found it doesn't keep it forever with no way to lose it. */
+   public static void forget(ServerPlayer player, String poiKey) {
+      ((AttachmentTarget) player).getAttachedOrCreate(DISCOVERED, HashSet::new).remove(poiKey);
+   }
+
    /** Debug/testing helper - clears every POI this player has discovered. */
    public static void forgetAll(ServerPlayer player) {
       ((AttachmentTarget) player).getAttachedOrCreate(DISCOVERED, HashSet::new).clear();

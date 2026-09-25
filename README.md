@@ -318,6 +318,37 @@ used to be nearest to a different tile (the Atlas grew, or a
 bounding box got corrected) can't leave a permanent stale duplicate
 behind.
 
+## Stale POIs surviving a dimension reset, and `/poi purge`
+
+Found live: the player was told a "Citadel" was right next to them in
+the Nether, but nothing was there. `/locate structure` confirmed the
+real nearest Citadel was 1403 blocks away - the registered POI was
+phantom. Root cause: the registry (`PoiRegistry`) is a persistent
+attachment on the *overworld*, entirely separate from a dimension's
+own region files. Deleting and regenerating the Nether's save folder
+earlier tonight (for the biome-dilution fix) never touched it, so
+every POI the scanner had already found there before that reset was
+left pointing at terrain that may no longer hold anything real in the
+freshly-regenerated Nether. Checked a second entry (Catacomb) the same
+way and confirmed it too (real one 1431 blocks away) - this wasn't a
+one-off, the whole Nether half of the registry was suspect.
+
+**Fix**: added `PoiRegistry#removeAllInDimension` and a
+`/poi purge <dimension>` admin command. Also handles the flip side
+properly, not just the registry: any online player who'd already
+discovered one of the purged POIs gets it stripped from their maps via
+the new `MapMarking#removeFromAllMaps` and un-discovered via the new
+`PlayerDiscoveries#forget` - without this, deleting the registry entry
+alone would leave an orphaned marker sitting on their map forever, since
+`PoiDiscovery`'s own re-mark loop only ever visits currently-registered
+POIs and would never revisit a deleted one to clean up after itself.
+
+Run live: `poi purge minecraft:the_nether` removed all 22 stale Nether
+entries (54 registered POIs down to 32, all Overworld) with zero
+errors. The structure scanner will naturally re-discover genuine
+structures in the regenerated terrain as players explore it, same as
+it did for a fresh world originally.
+
 ## Status
 
 Working, fully validated in-game end to end: automatic structure
@@ -326,5 +357,6 @@ real shape and requires an unobstructed line of sight, a single
 rendered marker per POI (on the one map tile actually closest to it,
 actively cleaned off any tile that isn't) on the player's Atlas whether
 carried or worn as a Trinkets accessory, surviving leaving/returning
-and a server restart, plus the Rumor item's hint system. Local-only so
-far, not yet pushed to production.
+and a server restart, plus the Rumor item's hint system, and an admin
+`/poi purge <dimension>` for cleaning up after a dimension reset.
+Local-only so far, not yet pushed to production.

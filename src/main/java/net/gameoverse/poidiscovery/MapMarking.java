@@ -86,18 +86,7 @@ public final class MapMarking {
       }
 
       ServerLevel level = player.level();
-      List<ItemStack> atlasStacks = new ArrayList<>();
-      for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
-         ItemStack stack = player.getInventory().getItem(slot);
-         if (stack.is(atlasItem.get())) {
-            atlasStacks.add(stack);
-         }
-      }
-      // The Atlas is just as commonly worn as a Trinkets accessory as it is carried in
-      // vanilla inventory on this server - the loop above alone can never find one there.
-      if (TRINKETS_LOADED) {
-         atlasStacks.addAll(TrinketAtlasLookup.getEquippedAtlases(player, atlasItem.get()));
-      }
+      List<ItemStack> atlasStacks = collectAtlasStacks(player, atlasItem.get());
 
       record AtlasMaps(ItemStack atlas, List<ItemStack> maps) {
       }
@@ -184,6 +173,58 @@ public final class MapMarking {
       }
 
       return true;
+   }
+
+   /**
+    * Strips this POI's marker from every map the player carries or wears, wherever it currently
+    * sits - used when a registry entry itself is being deleted (a stale/phantom POI, purged after
+    * e.g. a dimension reset), not just superseded by a closer tile. Without this, deleting the
+    * {@link PoiEntry} from {@link PoiRegistry} alone would leave an orphaned marker on whichever
+    * map already had it forever: {@link PoiDiscovery}'s own re-mark loop only ever iterates
+    * currently-registered POIs, so a removed one is never visited again to clean up after itself.
+    */
+   public static void removeFromAllMaps(ServerPlayer player, PoiEntry poi) {
+      Optional<Item> atlasItem = BuiltInRegistries.ITEM.getOptional(ATLAS_ID);
+      if (atlasItem.isEmpty()) {
+         return;
+      }
+
+      ServerLevel level = player.level();
+      for (ItemStack atlasStack : collectAtlasStacks(player, atlasItem.get())) {
+         BundleContents contents = atlasStack.getOrDefault(DataComponents.BUNDLE_CONTENTS, BundleContents.EMPTY);
+         if (contents.isEmpty()) {
+            continue;
+         }
+
+         List<ItemStackTemplate> rebuilt = new ArrayList<>();
+         boolean changed = false;
+         for (ItemStack mapStack : contents.itemCopyStream().toList()) {
+            if (mapStack.has(DataComponents.MAP_ID) && removeMarker(level, mapStack, poi)) {
+               changed = true;
+            }
+            rebuilt.add(ItemStackTemplate.fromNonEmptyStack(mapStack));
+         }
+
+         if (changed) {
+            atlasStack.set(DataComponents.BUNDLE_CONTENTS, new BundleContents(rebuilt));
+         }
+      }
+   }
+
+   private static List<ItemStack> collectAtlasStacks(ServerPlayer player, Item atlasItem) {
+      List<ItemStack> atlasStacks = new ArrayList<>();
+      for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
+         ItemStack stack = player.getInventory().getItem(slot);
+         if (stack.is(atlasItem)) {
+            atlasStacks.add(stack);
+         }
+      }
+      // The Atlas is just as commonly worn as a Trinkets accessory as it is carried in
+      // vanilla inventory on this server - the loop above alone can never find one there.
+      if (TRINKETS_LOADED) {
+         atlasStacks.addAll(TrinketAtlasLookup.getEquippedAtlases(player, atlasItem));
+      }
+      return atlasStacks;
    }
 
    /** Removes this POI's marker (item-level target decoration and live rendered decoration alike)
