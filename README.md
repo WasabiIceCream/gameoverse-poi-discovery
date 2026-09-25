@@ -384,6 +384,23 @@ Existing data survived the migration losslessly: all 32 remaining
 POIs were still present after the restart, since the overworld's own
 attachment file didn't move or change format at all.
 
+## Rumors firing from the player's own storage chests
+
+Found live 2026-09-25, right after fixing the exact same bug in
+`gameoverse-difficulty-hearts` (this project's `RandomizableContainerMixin`
+was explicitly modeled on that one's, and copied its mistake along with
+its pattern). The user noticed Rumors kept dropping from their own home
+storage chests while testing, not just genuine loot.
+
+`unpackLootTable` runs unconditionally on *every* container open;
+vanilla's own internal `getLootTable() != null` check is what actually
+gates whether real loot generates - a plain storage chest always has a
+null loot table and silently takes the no-op branch. The mixin injected
+at `TAIL`, which fires regardless of which branch ran, so the roll
+happened on every single chest open. Fixed by moving to `HEAD` and
+checking `getLootTable() != null` there, before vanilla's own body
+clears it via `setLootTable(null)` partway through.
+
 ## Status
 
 Working, fully validated in-game end to end: automatic structure
@@ -392,6 +409,7 @@ real shape and requires an unobstructed line of sight, a single
 rendered marker per POI (on the one map tile actually closest to it,
 actively cleaned off any tile that isn't) on the player's Atlas whether
 carried or worn as a Trinkets accessory, surviving leaving/returning
-and a server restart, plus the Rumor item's hint system, and an admin
-`/poi purge <dimension>` for cleaning up after a dimension reset.
-Local-only so far, not yet pushed to production.
+and a server restart, plus the Rumor item's hint system (now correctly
+gated to genuine loot chests only), and an admin `/poi purge <dimension>`
+for cleaning up after a dimension reset. Local-only so far, not yet
+pushed to production.
