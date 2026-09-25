@@ -7,6 +7,7 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.gameoverse.poidiscovery.mixin.MapItemSavedDataAccessor;
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.network.chat.Component;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
@@ -108,9 +109,17 @@ public final class MapMarking {
       for (ItemStack mapStack : contents.itemCopyStream().toList()) {
          if (mapStack.has(DataComponents.MAP_ID)) {
             markedAny = true;
+            // The item's own target-decoration entry survives a server restart (it's a real
+            // persisted data component), but the live MapItemSavedData's renderable decoration is
+            // an in-memory-only field that doesn't - so convertToVisibleDecoration has to run every
+            // time regardless of whether the item side already matches, or a POI already marked
+            // before a restart would silently stop rendering until something about it changed.
+            // addDecoration is itself idempotent, so this is safe to call unconditionally; only the
+            // (comparatively expensive, and disruptive to MapStitch's active-view tracking - see
+            // this class's own doc comment) bundle rewrite below stays gated on alreadyMarked.
+            convertToVisibleDecoration(level, mapStack, poi, iconType);
             if (!alreadyMarked(mapStack, poi, iconType)) {
                MapItemSavedData.addTargetDecoration(mapStack, poi.pos(), poi.key(), iconType);
-               convertToVisibleDecoration(level, mapStack, poi, iconType);
                changed = true;
             }
          }
@@ -156,7 +165,7 @@ public final class MapMarking {
       }
 
       accessor.gameoverse$addDecoration(
-         iconType, level, poi.key(), poi.pos().getX(), poi.pos().getZ(), 180.0, null
+         iconType, level, poi.key(), poi.pos().getX(), poi.pos().getZ(), 180.0, Component.literal(poi.name())
       );
    }
 }

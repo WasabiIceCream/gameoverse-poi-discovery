@@ -198,6 +198,30 @@ POI marker appeared clamped to the edge of a map tile that didn't cover
 its real position, pointing toward it - not just "eventually shows up
 once you've mapped that exact spot."
 
+## Two more real bugs found the same night, chasing "the marker has no label"
+
+4. **`convertToVisibleDecoration` always passed `null` for the
+   decoration's name** - so every real POI marker rendered as a bare
+   icon with no text, while a leftover *test* banner from earlier manual
+   testing happened to still show a name (garbled, since its
+   `CustomName` had been set to raw Component JSON by mistake rather
+   than plain text - an unrelated leftover, not this mod's code).
+   Fixed by passing `Component.literal(poi.name())` instead.
+5. **The live decoration would silently stop rendering after any
+   server restart, for any POI already marked before that restart** -
+   found while fixing bug 4, not yet actually reported. The item's own
+   target-decoration entry (`MAP_DECORATIONS`) is a real persisted data
+   component and survives a restart untouched; the *live*, actually-
+   rendered decoration lives in `MapItemSavedData`'s own in-memory-only
+   `decorations` field, which does not. `markOnAtlas` only ever called
+   `convertToVisibleDecoration` when the item-level entry didn't already
+   match - true forever, for anything marked before a restart, on the
+   freshly-loaded (and therefore empty-decorations) map instance,
+   silently starving it of the one call that would populate it again.
+   Fixed by always calling `convertToVisibleDecoration` (itself
+   idempotent, and cheap) and keeping `alreadyMarked` only as the gate
+   on the comparatively expensive/disruptive `BundleContents` rewrite.
+
 ## Status
 
 Working, fully validated in-game end to end: automatic structure
