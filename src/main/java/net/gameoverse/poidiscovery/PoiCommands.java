@@ -67,9 +67,14 @@ public final class PoiCommands {
       return removed ? 1 : 0;
    }
 
+   /** Lists every POI across every loaded dimension, not just the command's own - the registry is
+    *  per-dimension now (see {@link PoiRegistry}'s own class doc), so a single-dimension query
+    *  would otherwise silently drop this command's old "show me everything" usefulness. */
    private static int list(CommandContext<CommandSourceStack> context) {
-      ServerLevel level = context.getSource().getLevel();
-      List<PoiEntry> all = PoiRegistry.all(level);
+      List<PoiEntry> all = new java.util.ArrayList<>();
+      for (ServerLevel level : context.getSource().getServer().getAllLevels()) {
+         all.addAll(PoiRegistry.all(level));
+      }
       if (all.isEmpty()) {
          context.getSource().sendSuccess(() -> Component.literal("No POIs registered."), false);
          return 0;
@@ -84,23 +89,21 @@ public final class PoiCommands {
    }
 
    /**
-    * Bulk-removes every registered POI for one dimension - needed after deleting and regenerating
-    * that dimension's own save folder (done once already, for the Nether biome-dilution fix): the
-    * registry is a separate persistent attachment on the overworld, untouched by wiping any other
-    * dimension's region files, so every POI the scanner had found there is left stale, pointing at
-    * terrain that may no longer hold anything real. Also strips the marker from - and un-discovers
-    * it for - every online player who'd already found one of the purged POIs, so nothing orphaned
-    * is left sitting on a map forever with no registry entry left to ever clean it up again.
+    * Bulk-clears every registered POI for one dimension - a manual fallback for anything short of
+    * a full save-folder wipe (a bounding box correction, a bad manual `/poi register`, etc). A full
+    * dimension reset no longer needs this at all now that the registry is per-dimension (see
+    * {@link PoiRegistry}'s own class doc) - deleting that dimension's save folder deletes its own
+    * POIs right along with it. Still strips the marker from, and un-discovers, every online player
+    * who'd already found one of the purged POIs, so nothing orphaned is left sitting on a map
+    * forever with no registry entry left to ever clean it up again.
     */
    private static int purgeDimension(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
-      ServerLevel level = context.getSource().getLevel();
       ServerLevel target = DimensionArgument.getDimension(context, "dimension");
-      ResourceKey<Level> dimension = target.dimension();
 
-      List<PoiEntry> purged = PoiRegistry.all(level).stream().filter(e -> e.dimension().equals(dimension)).toList();
-      int removed = PoiRegistry.removeAllInDimension(level, dimension);
+      List<PoiEntry> purged = PoiRegistry.all(target);
+      int removed = PoiRegistry.removeAll(target);
 
-      for (ServerPlayer player : level.getServer().getPlayerList().getPlayers()) {
+      for (ServerPlayer player : target.getServer().getPlayerList().getPlayers()) {
          var discovered = PlayerDiscoveries.discovered(player);
          for (PoiEntry entry : purged) {
             if (discovered.contains(entry.key())) {
@@ -110,6 +113,7 @@ public final class PoiCommands {
          }
       }
 
+      ResourceKey<Level> dimension = target.dimension();
       context.getSource().sendSuccess(() -> Component.literal("Purged " + removed + " POI(s) registered for " + dimension.identifier()), true);
       return removed;
    }

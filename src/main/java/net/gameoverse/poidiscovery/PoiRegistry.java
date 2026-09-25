@@ -9,15 +9,24 @@ import net.fabricmc.fabric.api.attachment.v1.AttachmentRegistry;
 import net.fabricmc.fabric.api.attachment.v1.AttachmentTarget;
 import net.fabricmc.fabric.api.attachment.v1.AttachmentType;
 import net.minecraft.resources.Identifier;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.level.Level;
 
 /**
- * The world's registered points of interest, keyed by {@link PoiEntry#key()}. Stored as a single
- * persistent attachment on the overworld (an arbitrary but stable single attachment point - the
- * registry itself is global, not per-dimension; each entry carries its own dimension). Same
- * Fabric Data Attachment pattern already used for {@code PlacedBlocks} in gameoverse-difficulty-hearts.
+ * The world's registered points of interest, keyed by {@link PoiEntry#key()}. Stored as a
+ * persistent attachment on each individual dimension's own {@link ServerLevel} - the same Fabric
+ * Data Attachment pattern already used for {@code PlacedBlocks} in
+ * gameoverse-difficulty-hearts, but genuinely per-dimension here rather than a single global map
+ * parked on the overworld (that was this class's original design; changed 2026-09-25 after a
+ * real incident: deleting and regenerating the Nether's own save folder for the biome-dilution
+ * fix left every Nether POI the scanner had found stale, since a global registry attached to the
+ * overworld is entirely untouched by wiping any other dimension's region files). A Fabric
+ * attachment on a {@code ServerLevel} persists inside that level's own data folder (confirmed on
+ * disk: {@code dimensions/minecraft/overworld/data/fabric/attachments.dat} - other mods already
+ * installed here, like cardinal-components and biolith, keep their own per-dimension data the
+ * same way under each dimension's own {@code data/} folder), so attaching per-dimension means
+ * deleting a dimension's save folder now deletes its own POIs right along with it - no manual
+ * cleanup needed, the class of bug is gone rather than patched after the fact. {@code /poi purge}
+ * (see {@link PoiCommands}) stays as a manual fallback for anything not caused by a full wipe.
  */
 public final class PoiRegistry {
    public static final AttachmentType<Map<String, PoiEntry>> POIS = AttachmentRegistry.createPersistent(
@@ -47,9 +56,10 @@ public final class PoiRegistry {
       return new ArrayList<>(map.values());
    }
 
+   /** {@code level} is the dimension a POI actually belongs to - not a stand-in for "the server",
+    *  every dimension keeps its own independent map. */
    private static Map<String, PoiEntry> registry(ServerLevel level) {
-      ServerLevel overworld = level.getServer().overworld();
-      return ((AttachmentTarget) overworld).getAttachedOrCreate(POIS, LinkedHashMap::new);
+      return ((AttachmentTarget) level).getAttachedOrCreate(POIS, LinkedHashMap::new);
    }
 
    public static void register(ServerLevel level, PoiEntry entry) {
@@ -61,20 +71,15 @@ public final class PoiRegistry {
    }
 
    /**
-    * Bulk-removes every POI registered for one dimension. Needed for a real scenario, not just
-    * theoretical: deleting and regenerating a dimension's own save folder (done once already, for
-    * the Nether biome-dilution fix) leaves every POI the structure scanner had already found there
-    * stale - this registry is a separate persistent attachment on the overworld, entirely unrelated
-    * to that dimension's own region files, so wiping the dimension never touches it. A stale entry
-    * doesn't just linger harmlessly: it still passes discovery's proximity/line-of-sight checks
-    * against a real, physical structure that may no longer exist anywhere near that position in the
-    * regenerated terrain.
+    * Bulk-clears every POI registered for one dimension - a manual fallback for anything that
+    * needs cleaning up without a full save-folder wipe (a bounding box correction, a bad manual
+    * `/poi register`, etc.). A full dimension reset no longer needs this at all: see the class doc.
     */
-   public static int removeAllInDimension(ServerLevel level, ResourceKey<Level> dimension) {
+   public static int removeAll(ServerLevel level) {
       Map<String, PoiEntry> map = registry(level);
-      List<String> toRemove = map.values().stream().filter(e -> e.dimension().equals(dimension)).map(PoiEntry::key).toList();
-      toRemove.forEach(map::remove);
-      return toRemove.size();
+      int count = map.size();
+      map.clear();
+      return count;
    }
 
    public static List<PoiEntry> all(ServerLevel level) {

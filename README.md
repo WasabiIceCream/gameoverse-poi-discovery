@@ -349,6 +349,41 @@ errors. The structure scanner will naturally re-discover genuine
 structures in the regenerated terrain as players explore it, same as
 it did for a fresh world originally.
 
+## Per-dimension registry, same night
+
+The user asked directly whether a per-dimension registry design would
+be better than needing `/poi purge` after the fact. Checked how Fabric
+attachments actually persist before answering: a persistent attachment
+on a `ServerLevel` saves inside that level's own data folder (confirmed
+on disk - `dimensions/minecraft/overworld/data/fabric/attachments.dat`;
+other mods already installed on this server, like `cardinal-components`
+and `biolith`, keep their own per-dimension data the exact same way
+under each dimension's own `data/`). The original design attached the
+whole registry to the overworld unconditionally regardless of which
+dimension a POI actually belonged to - a real design mistake, not just
+a missed edge case, since it meant the registry's own persistence
+lifecycle was completely decoupled from the dimension data it was
+describing.
+
+**Fix**: `PoiRegistry` now attaches to whichever `ServerLevel` a POI
+actually belongs to. Confirmed live: after restarting, the Nether got
+its own `the_nether/data/fabric/attachments.dat` the moment anything
+touched its registry, mirroring the overworld's file exactly - deleting
+that dimension's save folder now deletes its own POIs automatically,
+with no manual cleanup step ever needed again. `PoiDiscovery`'s tick
+loop now looks up only the current player's own dimension directly
+instead of fetching everything and filtering afterward (simpler and
+cheaper). `/poi purge` stays as a manual fallback for anything short of
+a full save-folder wipe (a corrected bounding box, a bad manual
+register), and `/poi list` now explicitly walks every loaded dimension
+so its old "show me everything" usefulness isn't lost just because the
+underlying storage is no longer one single map.
+
+Existing data survived the migration losslessly: all 32 remaining
+(Overworld-only, since the Nether had just been purged moments earlier)
+POIs were still present after the restart, since the overworld's own
+attachment file didn't move or change format at all.
+
 ## Status
 
 Working, fully validated in-game end to end: automatic structure

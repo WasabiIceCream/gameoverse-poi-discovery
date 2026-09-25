@@ -78,15 +78,13 @@ public class PoiDiscovery implements ModInitializer {
       }
       tickCounter = 0;
 
-      var allPois = PoiRegistry.all(server.overworld());
       for (ServerPlayer player : server.getPlayerList().getPlayers()) {
          var discovered = PlayerDiscoveries.discovered(player);
+         // The registry is per-dimension now (see PoiRegistry's own class doc) - only ever fetch
+         // whichever dimension this player is actually in, not a global list filtered afterward.
+         var pois = PoiRegistry.all(player.level());
 
-         for (PoiEntry poi : allPois) {
-            if (!player.level().dimension().equals(poi.dimension())) {
-               continue;
-            }
-
+         for (PoiEntry poi : pois) {
             if (discovered.contains(poi.key())) {
                // Already discovered - keep re-marking it on the player's current maps rather than
                // only ever marking once at the moment of discovery. A map added to the Atlas
