@@ -159,10 +159,51 @@ marker still there and the map still loads normally.
    at boot. Fixed by forcing `PoiRegistry`/`PlayerDiscoveries` to
    class-load unconditionally in `onInitialize()`.
 
+## Two more real bugs found 2026-09-24, chasing "markers still aren't showing up"
+
+3. **A `MapDecorationType` ID-format bug blocked 72% of markers outright**
+   — `StructurePois.java`'s vanilla banner icon IDs were written as
+   `"<color>_banner"`, but the real registry key format (confirmed by
+   decompiling `MapDecorationTypes.java`) is `"banner_<color>"`. Fixed by
+   bulk-correcting all 120 affected entries across 16 colors.
+2. **`MapMarking` only ever scanned vanilla inventory, never Trinkets
+   accessory slots** — this server's MapStitch config lists
+   `"accessories"` as a valid Atlas location (Trinkets Updated is
+   installed), and the Atlas is routinely worn there rather than
+   carried. `markOnAllMaps`'s inventory-slot loop could never find an
+   Atlas worn as a trinket. Fixed by adding a Trinkets-aware lookup
+   (`TrinketAtlasLookup`, isolated behind
+   `FabricLoader.isModLoaded("trinkets")` so nothing breaks if Trinkets
+   is ever removed) alongside the existing vanilla-inventory scan.
+3. **The marker only ever appeared once a map tile already happened to
+   cover the POI's exact position** — confirmed live: a player standing
+   *on* a Nether Fortress still saw no marker, because none of their
+   map tiles' own ~127-block captured squares included that spot yet.
+   Root cause: vanilla's `MapItemSavedData.addDecoration` silently drops
+   any non-player decoration outside the map's own bounds *unless*
+   `unlimitedTracking` is set - the flag a real Explorer/Treasure Map
+   gets at creation specifically so its arrow stays visible from any
+   distance. A normal player-made map defaults it to `false`, so our
+   target decorations (written via the same vanilla API an Explorer Map
+   uses) were being clipped exactly like a physical banner would be,
+   the opposite of the "vague direction+distance hint" this feature is
+   for. Fixed by exposing the (normally `final`) `unlimitedTracking`
+   field via a `@Mutable @Accessor` mixin and flipping it to `true` the
+   first time any of a player's maps gets a POI decoration written to
+   it - matches vanilla's own mechanism for the exact same UX Explorer
+   Maps already have, rather than inventing a new one.
+
+Confirmed live end to end after all three fixes: an already-discovered
+POI marker appeared clamped to the edge of a map tile that didn't cover
+its real position, pointing toward it - not just "eventually shows up
+once you've mapped that exact spot."
+
 ## Status
 
 Working, fully validated in-game end to end: automatic structure
-detection, 200-block proximity discovery, a rendered marker on the
-player's Atlas that survives leaving/returning and a server restart, and
-the Rumor item's hint system. Local-only so far, not yet pushed to
+detection, 200-block proximity discovery, a rendered marker (now
+genuinely always-visible, not just on a map tile that happens to cover
+the exact spot) on the player's Atlas whether carried or worn as a
+Trinkets accessory, surviving leaving/returning and a server restart,
+plus the Rumor item's hint system. Local-only so far, not yet pushed to
 production.

@@ -3,6 +3,7 @@ package net.gameoverse.poidiscovery;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import net.fabricmc.loader.api.FabricLoader;
 import net.gameoverse.poidiscovery.mixin.MapItemSavedDataAccessor;
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponents;
@@ -37,6 +38,11 @@ import net.minecraft.world.level.saveddata.maps.MapDecorationType;
  * it, repack via {@link ItemStackTemplate#fromNonEmptyStack}, and write the new
  * {@link BundleContents} back onto the Atlas stack in the player's inventory.
  * <p>
+ * Also checks Trinkets accessory slots for the Atlas, not just vanilla inventory - guarded by
+ * {@code FabricLoader.isModLoaded("trinkets")} and isolated to {@link TrinketAtlasLookup} so
+ * Trinkets' own classes are never touched if it isn't installed. This server's MapStitch config
+ * lists "accessories" as a valid Atlas location, so it's routinely worn there rather than carried.
+ * <p>
  * A target decoration alone only lives on the map ITEM - vanilla only ever converts it into an
  * actually-visible decoration (on the map's own {@code MapItemSavedData}, which is what every
  * renderer, including MapStitch's minimap, actually reads) via {@code tickCarriedBy}, and that
@@ -59,6 +65,8 @@ public final class MapMarking {
    private MapMarking() {
    }
 
+   private static final boolean TRINKETS_LOADED = FabricLoader.getInstance().isModLoaded("trinkets");
+
    /** Returns true if the POI was actually marked on at least one of the player's maps. */
    public static boolean markOnAllMaps(ServerPlayer player, PoiEntry poi) {
       Optional<Item> atlasItem = BuiltInRegistries.ITEM.getOptional(ATLAS_ID);
@@ -71,34 +79,47 @@ public final class MapMarking {
       boolean markedAny = false;
       for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
          ItemStack atlasStack = player.getInventory().getItem(slot);
-         if (!atlasStack.is(atlasItem.get())) {
-            continue;
-         }
-
-         BundleContents contents = atlasStack.getOrDefault(DataComponents.BUNDLE_CONTENTS, BundleContents.EMPTY);
-         if (contents.isEmpty()) {
-            continue;
-         }
-
-         List<ItemStackTemplate> rebuilt = new ArrayList<>();
-         boolean changed = false;
-         for (ItemStack mapStack : contents.itemCopyStream().toList()) {
-            if (mapStack.has(DataComponents.MAP_ID)) {
-               markedAny = true;
-               if (!alreadyMarked(mapStack, poi, iconType.get())) {
-                  MapItemSavedData.addTargetDecoration(mapStack, poi.pos(), poi.key(), iconType.get());
-                  convertToVisibleDecoration(level, mapStack, poi, iconType.get());
-                  changed = true;
-               }
-            }
-            rebuilt.add(ItemStackTemplate.fromNonEmptyStack(mapStack));
-         }
-
-         if (changed) {
-            atlasStack.set(DataComponents.BUNDLE_CONTENTS, new BundleContents(rebuilt));
+         if (atlasStack.is(atlasItem.get())) {
+            markedAny |= markOnAtlas(level, atlasStack, poi, iconType.get());
          }
       }
 
+      // The Atlas is just as commonly worn as a Trinkets accessory as it is carried in
+      // vanilla inventory on this server - the loop above alone can never find one there.
+      if (TRINKETS_LOADED) {
+         for (ItemStack atlasStack : TrinketAtlasLookup.getEquippedAtlases(player, atlasItem.get())) {
+            markedAny |= markOnAtlas(level, atlasStack, poi, iconType.get());
+         }
+      }
+
+      return markedAny;
+   }
+
+   /** Marks every map inside one Atlas stack's bundle. Returns true if it held any maps at all. */
+   private static boolean markOnAtlas(ServerLevel level, ItemStack atlasStack, PoiEntry poi, Holder<MapDecorationType> iconType) {
+      BundleContents contents = atlasStack.getOrDefault(DataComponents.BUNDLE_CONTENTS, BundleContents.EMPTY);
+      if (contents.isEmpty()) {
+         return false;
+      }
+
+      boolean markedAny = false;
+      List<ItemStackTemplate> rebuilt = new ArrayList<>();
+      boolean changed = false;
+      for (ItemStack mapStack : contents.itemCopyStream().toList()) {
+         if (mapStack.has(DataComponents.MAP_ID)) {
+            markedAny = true;
+            if (!alreadyMarked(mapStack, poi, iconType)) {
+               MapItemSavedData.addTargetDecoration(mapStack, poi.pos(), poi.key(), iconType);
+               convertToVisibleDecoration(level, mapStack, poi, iconType);
+               changed = true;
+            }
+         }
+         rebuilt.add(ItemStackTemplate.fromNonEmptyStack(mapStack));
+      }
+
+      if (changed) {
+         atlasStack.set(DataComponents.BUNDLE_CONTENTS, new BundleContents(rebuilt));
+      }
       return markedAny;
    }
 
@@ -129,7 +150,12 @@ public final class MapMarking {
          return;
       }
 
-      ((MapItemSavedDataAccessor) mapData).gameoverse$addDecoration(
+      MapItemSavedDataAccessor accessor = (MapItemSavedDataAccessor) mapData;
+      if (!accessor.gameoverse$isUnlimitedTracking()) {
+         accessor.gameoverse$setUnlimitedTracking(true);
+      }
+
+      accessor.gameoverse$addDecoration(
          iconType, level, poi.key(), poi.pos().getX(), poi.pos().getZ(), 180.0, null
       );
    }
