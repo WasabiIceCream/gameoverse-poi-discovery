@@ -8,6 +8,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.chunk.ChunkAccess;
+import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.world.level.levelgen.structure.Structure;
 import net.minecraft.world.level.levelgen.structure.StructureStart;
 
@@ -20,6 +21,17 @@ import net.minecraft.world.level.levelgen.structure.StructureStart;
  * <p>
  * Deliberately only looks at already-loaded chunks ({@code getChunkNow}, never forces a chunk to
  * load) - this is a courtesy scan riding along with normal exploration, not a full world scan.
+ * <p>
+ * <b>Only trusts a chunk once it has reached {@link ChunkStatus#FULL}</b> (see
+ * {@link #isFullyGenerated}). {@code getChunkNow} can return a proto-chunk that Minecraft's own
+ * structure-placement pipeline only touched as a side effect of generating a neighboring chunk -
+ * a structure's {@code start} bounding box is computed and written as early as the
+ * {@code STRUCTURE_STARTS} stage, long before the jigsaw pieces are actually carved into terrain
+ * at {@code FEATURES}. Confirmed live 2026-09-24: a player reported the Rumors system announcing
+ * structures they could never find, and {@code /data get block} at several "discovered" Nether
+ * coordinates came back "That position is not loaded" - those chunks had never generated past an
+ * early stage, so {@code chunk.getAllStarts()} was returning real, valid {@code StructureStart}
+ * metadata for structures whose actual blocks were never placed anywhere.
  */
 public final class StructureScanner {
    /** How far out (in chunks) to scan around each player. */
@@ -44,7 +56,7 @@ public final class StructureScanner {
          for (int dx = -SCAN_RADIUS_CHUNKS; dx <= SCAN_RADIUS_CHUNKS; dx++) {
             for (int dz = -SCAN_RADIUS_CHUNKS; dz <= SCAN_RADIUS_CHUNKS; dz++) {
                ChunkAccess chunk = level.getChunkSource().getChunkNow(center.x() + dx, center.z() + dz);
-               if (chunk == null) {
+               if (chunk == null || !isFullyGenerated(chunk)) {
                   continue;
                }
 
@@ -70,5 +82,13 @@ public final class StructureScanner {
             }
          }
       }
+   }
+
+   /** Whether {@code chunk} has actually finished generating (its structure pieces, if any, have
+    *  really been carved into terrain) rather than merely having a {@code StructureStart} computed
+    *  as a side effect of a neighboring chunk's own generation. See the class doc for why this
+    *  check exists. */
+   private static boolean isFullyGenerated(ChunkAccess chunk) {
+      return chunk.getPersistedStatus().isOrAfter(ChunkStatus.FULL);
    }
 }
