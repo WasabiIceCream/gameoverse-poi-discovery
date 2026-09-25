@@ -264,13 +264,43 @@ behavior until the structure scanner's next pass re-registers them with
 a real box. Confirmed live: the registry reloaded cleanly with zero
 errors after this change, all previously-registered POIs intact.
 
+## Marker duplication across the mosaic, and a tighter discovery radius
+
+Two more real issues, both raised by the user right after the
+structure-shape fix above:
+
+- **The world map's merged mosaic showed the same POI label duplicated
+  on every tile that didn't cover it.** A direct side effect of the
+  `unlimitedTracking` fix: every map tile in the Atlas independently
+  got the same decoration, each clamping it to its own edge if it
+  didn't cover the real position. On a single held map that's exactly
+  the intended Explorer-Map-style behavior (you only ever see one at a
+  time); on MapStitch's stitched mosaic, where many tiles render on
+  screen simultaneously, every one of them showing its own edge-clamped
+  copy meant the same label piled up across the whole visible map.
+  **Fix**: `MapMarking` now marks only the single map tile (across
+  every Atlas the player carries or wears) whose own real center is
+  closest to the POI - the tile most likely to actually cover the
+  position, and the single most useful one to show a directional edge
+  arrow from when nothing does. Other tiles simply don't get the
+  decoration at all going forward; since the actually-rendered
+  decoration is in-memory-only (see the restart-survival fix above),
+  any duplicate already sitting on other tiles from before this fix
+  quietly stops rendering the next time the server restarts, with no
+  explicit cleanup needed.
+- **Discovery range felt too generous** - 200 blocks in every
+  direction is more than a full MapStitch tile-width (128 blocks at
+  scale 0), so a player could trigger discovery from noticeably farther
+  than felt right. Reduced `DISCOVERY_RADIUS` to 100 blocks, the user's
+  own choice among a few options.
+
 ## Status
 
 Working, fully validated in-game end to end: automatic structure
-detection, 200-block proximity discovery that respects a structure's
-real shape and requires an unobstructed line of sight, a rendered
-marker (now genuinely always-visible, not just on a map tile that
-happens to cover the exact spot) on the player's Atlas whether carried
+detection, 100-block proximity discovery that respects a structure's
+real shape and requires an unobstructed line of sight, a single
+rendered marker per POI (on the one map tile actually closest to it,
+not duplicated across the mosaic) on the player's Atlas whether carried
 or worn as a Trinkets accessory, surviving leaving/returning and a
 server restart, plus the Rumor item's hint system. Local-only so far,
 not yet pushed to production.

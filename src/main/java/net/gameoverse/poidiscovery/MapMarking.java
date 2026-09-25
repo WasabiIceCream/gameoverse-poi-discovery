@@ -22,9 +22,18 @@ import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
 import net.minecraft.world.level.saveddata.maps.MapDecorationType;
 
 /**
- * Marks a discovered POI on every map inside a player's MapStitch Atlas - checked against the
- * real Atlas item only by registry ID (soft reference, no compile-time dependency on the mod
- * itself; if it's ever uninstalled this silently does nothing).
+ * Marks a discovered POI on the single map tile (across every Atlas the player carries or wears)
+ * whose own real center is closest to the POI's position - checked against the real Atlas item
+ * only by registry ID (soft reference, no compile-time dependency on the mod itself; if it's ever
+ * uninstalled this silently does nothing).
+ * <p>
+ * Deliberately only the nearest tile, not every tile the player owns: marking every map produced a
+ * real, confirmed bug once {@code unlimitedTracking} (see below) was added - on the merged
+ * world-map mosaic, where many tiles render on screen simultaneously (unlike a single held map),
+ * the same decoration showed up edge-clamped and duplicated on every tile that didn't actually
+ * cover the POI's real position, all at once. The nearest tile is the one most likely to actually
+ * cover the position (rendering it at its true location, no clamping at all) and, when nothing
+ * covers it yet, the single most useful tile to show a directional edge arrow from.
  * <p>
  * Uses {@code MapItemSavedData#addTargetDecoration(ItemStack, BlockPos, String, Holder)} - the
  * same real, public vanilla API used for Explorer Map treasure markers - rather than the
@@ -77,38 +86,66 @@ public final class MapMarking {
       }
 
       ServerLevel level = player.level();
-      boolean markedAny = false;
+      List<ItemStack> atlasStacks = new ArrayList<>();
       for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
-         ItemStack atlasStack = player.getInventory().getItem(slot);
-         if (atlasStack.is(atlasItem.get())) {
-            markedAny |= markOnAtlas(level, atlasStack, poi, iconType.get());
+         ItemStack stack = player.getInventory().getItem(slot);
+         if (stack.is(atlasItem.get())) {
+            atlasStacks.add(stack);
          }
       }
-
       // The Atlas is just as commonly worn as a Trinkets accessory as it is carried in
       // vanilla inventory on this server - the loop above alone can never find one there.
       if (TRINKETS_LOADED) {
-         for (ItemStack atlasStack : TrinketAtlasLookup.getEquippedAtlases(player, atlasItem.get())) {
-            markedAny |= markOnAtlas(level, atlasStack, poi, iconType.get());
+         atlasStacks.addAll(TrinketAtlasLookup.getEquippedAtlases(player, atlasItem.get()));
+      }
+
+      ItemStack nearestAtlas = null;
+      List<ItemStack> nearestAtlasMaps = null;
+      int nearestIndex = -1;
+      double bestDistSq = Double.MAX_VALUE;
+      boolean anyMaps = false;
+
+      for (ItemStack atlasStack : atlasStacks) {
+         BundleContents contents = atlasStack.getOrDefault(DataComponents.BUNDLE_CONTENTS, BundleContents.EMPTY);
+         if (contents.isEmpty()) {
+            continue;
+         }
+
+         List<ItemStack> maps = contents.itemCopyStream().toList();
+         for (int i = 0; i < maps.size(); i++) {
+            ItemStack mapStack = maps.get(i);
+            if (!mapStack.has(DataComponents.MAP_ID)) {
+               continue;
+            }
+            anyMaps = true;
+
+            MapId mapId = mapStack.get(DataComponents.MAP_ID);
+            MapItemSavedData data = level.getMapData(mapId);
+            if (data == null) {
+               continue;
+            }
+
+            double dx = data.centerX - poi.pos().getX();
+            double dz = data.centerZ - poi.pos().getZ();
+            double distSq = dx * dx + dz * dz;
+            if (distSq < bestDistSq) {
+               bestDistSq = distSq;
+               nearestAtlas = atlasStack;
+               nearestAtlasMaps = maps;
+               nearestIndex = i;
+            }
          }
       }
 
-      return markedAny;
-   }
-
-   /** Marks every map inside one Atlas stack's bundle. Returns true if it held any maps at all. */
-   private static boolean markOnAtlas(ServerLevel level, ItemStack atlasStack, PoiEntry poi, Holder<MapDecorationType> iconType) {
-      BundleContents contents = atlasStack.getOrDefault(DataComponents.BUNDLE_CONTENTS, BundleContents.EMPTY);
-      if (contents.isEmpty()) {
-         return false;
+      if (nearestAtlas == null) {
+         return anyMaps;
       }
 
-      boolean markedAny = false;
       List<ItemStackTemplate> rebuilt = new ArrayList<>();
       boolean changed = false;
-      for (ItemStack mapStack : contents.itemCopyStream().toList()) {
-         if (mapStack.has(DataComponents.MAP_ID)) {
-            markedAny = true;
+      for (int i = 0; i < nearestAtlasMaps.size(); i++) {
+         ItemStack mapStack = nearestAtlasMaps.get(i);
+         if (i == nearestIndex) {
             // The item's own target-decoration entry survives a server restart (it's a real
             // persisted data component), but the live MapItemSavedData's renderable decoration is
             // an in-memory-only field that doesn't - so convertToVisibleDecoration has to run every
@@ -117,9 +154,9 @@ public final class MapMarking {
             // addDecoration is itself idempotent, so this is safe to call unconditionally; only the
             // (comparatively expensive, and disruptive to MapStitch's active-view tracking - see
             // this class's own doc comment) bundle rewrite below stays gated on alreadyMarked.
-            convertToVisibleDecoration(level, mapStack, poi, iconType);
-            if (!alreadyMarked(mapStack, poi, iconType)) {
-               MapItemSavedData.addTargetDecoration(mapStack, poi.pos(), poi.key(), iconType);
+            convertToVisibleDecoration(level, mapStack, poi, iconType.get());
+            if (!alreadyMarked(mapStack, poi, iconType.get())) {
+               MapItemSavedData.addTargetDecoration(mapStack, poi.pos(), poi.key(), iconType.get());
                changed = true;
             }
          }
@@ -127,9 +164,9 @@ public final class MapMarking {
       }
 
       if (changed) {
-         atlasStack.set(DataComponents.BUNDLE_CONTENTS, new BundleContents(rebuilt));
+         nearestAtlas.set(DataComponents.BUNDLE_CONTENTS, new BundleContents(rebuilt));
       }
-      return markedAny;
+      return true;
    }
 
    /** True if this map's item data already has exactly this POI's target decoration entry. */

@@ -29,7 +29,7 @@ import net.minecraft.world.phys.Vec3;
  */
 public class PoiDiscovery implements ModInitializer {
    /** How close a player needs to get to trigger discovery. */
-   private static final double DISCOVERY_RADIUS = 200.0;
+   private static final double DISCOVERY_RADIUS = 100.0;
    private static final double DISCOVERY_RADIUS_SQ = DISCOVERY_RADIUS * DISCOVERY_RADIUS;
 
    /** Proximity is checked this often, not every tick - discovery isn't latency-sensitive. */
