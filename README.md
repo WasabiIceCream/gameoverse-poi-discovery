@@ -222,12 +222,55 @@ once you've mapped that exact spot."
    idempotent, and cheap) and keeping `alreadyMarked` only as the gate
    on the comparatively expensive/disruptive `BundleContents` rewrite.
 
+## Structure-shape-aware discovery, added 2026-09-24
+
+Two related gaps in how a POI's position worked, raised by the user
+directly:
+
+- A POI only ever stored one fixed coordinate, even though
+  `StructureStart#getBoundingBox()` already gives the real footprint
+  at scan time and was being discarded down to just its center. A
+  large structure (a Nether Fortress can be well over 100 blocks
+  across) could have a player standing right on top of it while still
+  reading as far from that one recorded point.
+- Discovery only ever checked distance, never occlusion - a player
+  buried in a totally unrelated cave far below a surface structure
+  could still "discover" it straight through solid rock, as long as
+  they were within 200 blocks.
+
+**Fix**: `PoiEntry` now carries the structure's real `boundsMin`/
+`boundsMax` (from the same `getBoundingBox()` call, previously thrown
+away) alongside the existing `pos` (kept only as a stable identity/
+display/map-marker anchor, unrelated to the discovery geometry).
+Discovery now measures against `PoiEntry#nearestPointTo` - the closest
+point on that real box to the player - for both the range check and a
+new line-of-sight raycast (`Level#clip`, same mechanism vanilla uses
+for mob targeting) from the player's eyes to that same nearest point.
+Being in range no longer discovers something buried behind solid
+terrain, and walking up to any real part of a large structure
+discovers it immediately without needing to reach one specific buried
+coordinate.
+
+A single raycast to the *nearest* point (not a multi-point scan across
+the whole structure) was a deliberate call: it's the single most likely
+exposed point, so it already permits discovery the moment any real
+part of the structure is actually visible, at a fraction of the cost of
+a full multi-ray visibility scan every check interval.
+
+Old saved registry entries (from before `boundsMin`/`boundsMax`
+existed) decode fine via an optional codec field, defaulting to a
+zero-size box at `pos` - degrading gracefully to the old point-based
+behavior until the structure scanner's next pass re-registers them with
+a real box. Confirmed live: the registry reloaded cleanly with zero
+errors after this change, all previously-registered POIs intact.
+
 ## Status
 
 Working, fully validated in-game end to end: automatic structure
-detection, 200-block proximity discovery, a rendered marker (now
-genuinely always-visible, not just on a map tile that happens to cover
-the exact spot) on the player's Atlas whether carried or worn as a
-Trinkets accessory, surviving leaving/returning and a server restart,
-plus the Rumor item's hint system. Local-only so far, not yet pushed to
-production.
+detection, 200-block proximity discovery that respects a structure's
+real shape and requires an unobstructed line of sight, a rendered
+marker (now genuinely always-visible, not just on a map tile that
+happens to cover the exact spot) on the player's Atlas whether carried
+or worn as a Trinkets accessory, surviving leaving/returning and a
+server restart, plus the Rumor item's hint system. Local-only so far,
+not yet pushed to production.

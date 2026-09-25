@@ -11,7 +11,10 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.block.CropBlock;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
 
 /**
  * Major landmark structures (see {@link StructurePois}) as discoverable points of interest,
@@ -92,11 +95,28 @@ public class PoiDiscovery implements ModInitializer {
                continue;
             }
 
-            if (player.position().distanceToSqr(poi.pos().getX() + 0.5, poi.pos().getY() + 0.5, poi.pos().getZ() + 0.5) <= DISCOVERY_RADIUS_SQ) {
+            Vec3 nearest = poi.nearestPointTo(player.position());
+            if (player.position().distanceToSqr(nearest) <= DISCOVERY_RADIUS_SQ && canSee(player, nearest)) {
                discover(player, poi);
             }
          }
       }
+   }
+
+   /**
+    * Whether {@code player} has an unobstructed line to {@code target} (the closest point on a
+    * POI's real bounding box, from {@link PoiEntry#nearestPointTo} - not one arbitrary fixed
+    * coordinate deep inside a large structure). Being within the discovery radius while buried
+    * under solid terrain - a deep tunnel below a surface ruin, the far side of a mountain from a
+    * Nether fortress - shouldn't count as having found it. A single raycast to the *nearest* point
+    * on the structure's box is a deliberate compromise over sampling many points across its whole
+    * surface: it's the single most likely point to actually be exposed, so it correctly allows
+    * discovery the moment any real part of the structure comes into view (walking up to its wall,
+    * standing on its roof) without the cost of a multi-ray visibility scan every check interval.
+    */
+   private static boolean canSee(ServerPlayer player, Vec3 target) {
+      ClipContext ctx = new ClipContext(player.getEyePosition(), target, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player);
+      return player.level().clip(ctx).getType() == HitResult.Type.MISS;
    }
 
    private void discover(ServerPlayer player, PoiEntry poi) {

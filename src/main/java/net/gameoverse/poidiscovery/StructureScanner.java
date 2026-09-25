@@ -76,8 +76,11 @@ public final class StructureScanner {
                      continue;
                   }
 
-                  BlockPos center3d = start.getBoundingBox().getCenter();
-                  PoiRegistry.register(level, new PoiEntry(center3d, level.dimension(), poi.name(), poi.icon()));
+                  var bb = start.getBoundingBox();
+                  BlockPos center3d = bb.getCenter();
+                  BlockPos min = new BlockPos(bb.minX(), bb.minY(), bb.minZ());
+                  BlockPos max = new BlockPos(bb.maxX(), bb.maxY(), bb.maxZ());
+                  PoiRegistry.register(level, new PoiEntry(center3d, min, max, level.dimension(), poi.name(), poi.icon()));
                }
             }
          }

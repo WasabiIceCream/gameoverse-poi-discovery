@@ -44,7 +44,7 @@ public final class PoiCommands {
       BlockPos pos = player.blockPosition();
       String name = StringArgumentType.getString(context, "name");
 
-      PoiEntry entry = new PoiEntry(pos, level.dimension(), name, DEFAULT_ICON);
+      PoiEntry entry = new PoiEntry(pos, pos, pos, level.dimension(), name, DEFAULT_ICON);
       PoiRegistry.register(level, entry);
 
       context.getSource().sendSuccess(() -> Component.literal("Registered POI: " + name + " at " + pos.toShortString()), true);
@@ -56,7 +56,7 @@ public final class PoiCommands {
       ServerLevel level = context.getSource().getLevel();
       BlockPos pos = player.blockPosition();
 
-      PoiEntry entry = new PoiEntry(pos, level.dimension(), "", "");
+      PoiEntry entry = new PoiEntry(pos, pos, pos, level.dimension(), "", "");
       boolean removed = PoiRegistry.remove(level, entry.key());
       context.getSource()
          .sendSuccess(() -> Component.literal(removed ? "Removed POI at " + pos.toShortString() : "No POI registered at " + pos.toShortString()), true);
