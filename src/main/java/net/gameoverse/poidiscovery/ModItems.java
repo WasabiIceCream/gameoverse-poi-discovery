@@ -12,7 +12,7 @@ public final class ModItems {
    // Reuses vanilla paper's own model (see assets/gameoverse_poi_discovery/items/rumor.json)
    // rather than shipping a custom texture - a reflavored, renamed paper item is enough for a
    // flavor/lore item like this.
-   public static final Item RUMOR = new RumorItem(new Item.Properties().stacksTo(16).setId(RUMOR_KEY));
+   public static final Item RUMOR = new RumorItem(new Item.Properties().stacksTo(64).setId(RUMOR_KEY));
 
    private ModItems() {
    }
