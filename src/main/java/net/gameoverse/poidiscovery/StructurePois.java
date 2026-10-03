@@ -135,6 +135,12 @@ public final class StructurePois {
 
       // --- Enderscape ---
       Map.entry("enderscape:end_haven", new Entry("End Haven", "minecraft:banner_purple")),
+      // Enderscape's enabled new_end_cities / new_strongholds packs replace vanilla's End City and Stronghold with these,
+      // so the vanilla entries above never match here (found 2026-10-03: no Stronghold or End City was ever tracked).
+      Map.entry("enderscape:end_city", new Entry("End City", "minecraft:banner_purple")),
+      Map.entry("enderscape:stronghold", new Entry("Stronghold", "minecraft:target_point")),
+      Map.entry("enderscape:mirestone_ruins", new Entry("Mirestone Ruins", "minecraft:banner_light_gray")),
+      Map.entry("enderscape:large_center_gateway", new Entry("End Gateway", "minecraft:banner_lime")),
 
       // --- Eternal Nether ---
       Map.entry("eternalnether:catacomb", new Entry("Catacomb", "minecraft:banner_red")),
