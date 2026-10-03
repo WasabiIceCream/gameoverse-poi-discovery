@@ -237,7 +237,20 @@ public final class StructurePois {
 
       // --- The Darkness Will Find You ---
       Map.entry("the_darkness_will_find_you:ancient_temple", new Entry("Ancient Temple", "minecraft:banner_black")),
-      Map.entry("the_darkness_will_find_you:ancient_village", new Entry("Ancient Village", "minecraft:banner_black"))
+      Map.entry("the_darkness_will_find_you:ancient_village", new Entry("Ancient Village", "minecraft:banner_black")),
+
+      // --- Aerial Hell (post-End; the "overworld" abandoned portal generates over the outer End here, see
+      //     gameoverse-aerial-hell-gate) ---
+      Map.entry("aerialhell:overworld_abandonned_portal", new Entry("Abandoned Portal", "minecraft:banner_cyan")),
+      Map.entry("aerialhell:ground_abandonned_portal", new Entry("Abandoned Portal", "minecraft:banner_cyan")),
+      Map.entry("aerialhell:cloud_abandonned_portal", new Entry("Abandoned Portal", "minecraft:banner_cyan")),
+      Map.entry("aerialhell:mud_dungeon", new Entry("Mud Dungeon", "minecraft:banner_brown")),
+      Map.entry("aerialhell:lunatic_temple", new Entry("Lunatic Temple", "minecraft:banner_light_blue")),
+      Map.entry("aerialhell:golden_nether_prison", new Entry("Golden Nether Prison", "minecraft:banner_yellow")),
+      Map.entry("aerialhell:shadow_catacombs", new Entry("Shadow Catacombs", "minecraft:banner_black")),
+      Map.entry("aerialhell:stellar_stone_bricks_tower", new Entry("Stellar Tower", "minecraft:target_point")),
+      Map.entry("aerialhell:shadow_pine_tower", new Entry("Shadow Tower", "minecraft:target_point")),
+      Map.entry("aerialhell:upside_down_pyramid", new Entry("Upside-Down Pyramid", "minecraft:banner_magenta"))
    );
 
    private StructurePois() {
