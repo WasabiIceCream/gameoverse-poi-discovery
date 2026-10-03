@@ -53,7 +53,8 @@ public class RumorItem extends Item {
 
       serverPlayer.sendSystemMessage(
          Component.translatable("gameoverse_poi_discovery.rumor.hint", Component.translatable(direction(dx, dz)),
-            Component.translatable(relative(dx, dz, serverPlayer.getYRot())), Component.translatable(distanceBucket(distance)))
+            Component.translatable(relative(dx, dz, serverPlayer.getYRot())), Component.translatable(distanceBucket(distance)),
+            Component.translatable(height(poi.pos().getY() + 0.5 - serverPlayer.getY())))
       );
       serverLevel.playSound(null, serverPlayer.blockPosition(), SoundEvents.BOOK_PAGE_TURN, SoundSource.PLAYERS, 0.6F, 1.2F);
 
@@ -96,6 +97,18 @@ public class RumorItem extends Item {
       }
       String[] relative = {"ahead", "ahead_right", "right", "behind_right", "behind", "behind_left", "left", "ahead_left"};
       return "gameoverse_poi_discovery.relative." + relative[(int) Math.round(angle / 45.0) % 8];
+   }
+
+   /** Height of the landmark's centre against the player's: post-End dimensions put dungeons underground and towers
+    *  near the build limit, so a bearing alone left players searching the wrong layer. */
+   private static String height(double dy) {
+      if (Math.abs(dy) < 16) {
+         return "gameoverse_poi_discovery.height.level";
+      } else if (dy > 0) {
+         return dy > 64 ? "gameoverse_poi_discovery.height.far_above" : "gameoverse_poi_discovery.height.above";
+      } else {
+         return dy < -64 ? "gameoverse_poi_discovery.height.far_below" : "gameoverse_poi_discovery.height.below";
+      }
    }
 
    private static String distanceBucket(double distance) {

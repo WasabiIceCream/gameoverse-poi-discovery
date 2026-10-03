@@ -3,7 +3,7 @@
   "gameoverse_poi_discovery.discovered_no_map": "Discovered: %s (get a MapStitch Atlas to see it marked)",
   "item.gameoverse_poi_discovery.rumor": "Rumor",
   "gameoverse_poi_discovery.rumor.nothing": "You've already tracked down everything you've heard rumors of. This one leads nowhere.",
-  "gameoverse_poi_discovery.rumor.hint": "A traveler's tale speaks of something %s (%s), %s from here.",
+  "gameoverse_poi_discovery.rumor.hint": "A traveler's tale speaks of something %s (%s), %s from here, %s.",
   "gameoverse_poi_discovery.direction.n": "to the north",
   "gameoverse_poi_discovery.direction.ne": "to the northeast",
   "gameoverse_poi_discovery.direction.e": "to the east",
@@ -22,5 +22,10 @@
   "gameoverse_poi_discovery.relative.behind": "behind you",
   "gameoverse_poi_discovery.relative.behind_left": "behind you, to your left",
   "gameoverse_poi_discovery.relative.left": "to your left",
-  "gameoverse_poi_discovery.relative.ahead_left": "ahead and to your left"
+  "gameoverse_poi_discovery.relative.ahead_left": "ahead and to your left",
+  "gameoverse_poi_discovery.height.level": "around your height",
+  "gameoverse_poi_discovery.height.above": "above you",
+  "gameoverse_poi_discovery.height.far_above": "far above you",
+  "gameoverse_poi_discovery.height.below": "below you",
+  "gameoverse_poi_discovery.height.far_below": "far below you"
 }
