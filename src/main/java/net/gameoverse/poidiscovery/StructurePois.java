@@ -279,6 +279,25 @@ public final class StructurePois {
       Map.entry("towns_and_towers:exclusives/pillager_outpost_tudor", new Entry("Pillager Outpost", "minecraft:banner_gray")),
       Map.entry("earth-and-water:conduit_monument", new Entry("Conduit Monument", "minecraft:banner_blue")),
 
+      // --- MES (Moog's End Structures) and Medieval Buildings [End Edition], added 2026-10-03 ---
+      Map.entry("mes:phantom_citadel", new Entry("Phantom Citadel", "minecraft:banner_purple")),
+      Map.entry("mes:enderkeep_courtyard", new Entry("Enderkeep", "minecraft:banner_purple")),
+      Map.entry("mes:ender_spire", new Entry("Ender Spire", "minecraft:target_point")),
+      Map.entry("mes:enderwatch_tower", new Entry("Enderwatch Tower", "minecraft:target_point")),
+      Map.entry("mes:monolith", new Entry("Monolith", "minecraft:target_point")),
+      Map.entry("mes:mythic_garden", new Entry("Mythic Garden", "minecraft:banner_lime")),
+      Map.entry("mes:starlight_voyager", new Entry("Starlight Voyager", "minecraft:banner_magenta")),
+      Map.entry("mes:mega_ship", new Entry("End Ship", "minecraft:banner_magenta")),
+      Map.entry("mes:mega_ship_basic", new Entry("End Ship", "minecraft:banner_magenta")),
+      Map.entry("mes:mega_ship_crashed", new Entry("End Ship", "minecraft:banner_magenta")),
+      Map.entry("mes:mega_ship_crashed_2", new Entry("End Ship", "minecraft:banner_magenta")),
+      Map.entry("mes:mega_ship_crashed_deepslate", new Entry("End Ship", "minecraft:banner_magenta")),
+      Map.entry("mes:mega_ship_deepslate", new Entry("End Ship", "minecraft:banner_magenta")),
+      Map.entry("mes:mega_ship_deepslate_2", new Entry("End Ship", "minecraft:banner_magenta")),
+      Map.entry("mes:mega_ship_deepslate_3", new Entry("End Ship", "minecraft:banner_magenta")),
+      Map.entry("medieval_end:castle", new Entry("End Castle", "minecraft:banner_purple")),
+      Map.entry("medieval_end:pyramid", new Entry("End Pyramid", "minecraft:banner_purple")),
+
       // --- Aerial Hell (post-End; the "overworld" abandoned portal generates over the outer End here, see
       //     gameoverse-aerial-hell-gate) ---
       Map.entry("aerialhell:overworld_abandonned_portal", new Entry("Abandoned Portal", "minecraft:banner_cyan")),
