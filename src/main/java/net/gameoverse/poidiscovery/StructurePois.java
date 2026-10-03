@@ -130,6 +130,8 @@ public final class StructurePois {
       Map.entry("mmr:nether_mineshaft", new Entry("Mineshaft", "minecraft:target_x")),
       Map.entry("mmr:desert_mineshaft", new Entry("Mineshaft", "minecraft:target_x")),
       Map.entry("mmr:snowy_mineshaft", new Entry("Mineshaft", "minecraft:target_x")),
+      Map.entry("mmr:dark_oak_mineshaft", new Entry("Mineshaft", "minecraft:target_x")),
+      Map.entry("mmr:mushroom_mineshaft", new Entry("Mineshaft", "minecraft:target_x")),
 
       // --- Enderscape ---
       Map.entry("enderscape:end_haven", new Entry("End Haven", "minecraft:banner_purple")),
