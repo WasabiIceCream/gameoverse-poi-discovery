@@ -52,7 +52,8 @@ public class RumorItem extends Item {
       double distance = Math.sqrt(dx * dx + dz * dz);
 
       serverPlayer.sendSystemMessage(
-         Component.translatable("gameoverse_poi_discovery.rumor.hint", Component.translatable(direction(dx, dz)), Component.translatable(distanceBucket(distance)))
+         Component.translatable("gameoverse_poi_discovery.rumor.hint", Component.translatable(direction(dx, dz)),
+            Component.translatable(relative(dx, dz, serverPlayer.getYRot())), Component.translatable(distanceBucket(distance)))
       );
       serverLevel.playSound(null, serverPlayer.blockPosition(), SoundEvents.BOOK_PAGE_TURN, SoundSource.PLAYERS, 0.6F, 1.2F);
 
@@ -79,6 +80,22 @@ public class RumorItem extends Item {
       };
       int index = (int) Math.round(angle / 45.0) % 8;
       return directions[index];
+   }
+
+   /**
+    * The same bearing relative to where the player is looking: compasses only work in the Overworld, so in the Nether,
+    * the End and post-End dimensions "to the northeast" alone gave no way to tell which way to go.
+    * Yaw 0 faces south (+Z); the player's right is (-fz, fx).
+    */
+   private static String relative(double dx, double dz, float yaw) {
+      double fx = -Math.sin(Math.toRadians(yaw));
+      double fz = Math.cos(Math.toRadians(yaw));
+      double angle = Math.toDegrees(Math.atan2(-dx * fz + dz * fx, dx * fx + dz * fz));
+      if (angle < 0) {
+         angle += 360;
+      }
+      String[] relative = {"ahead", "ahead_right", "right", "behind_right", "behind", "behind_left", "left", "ahead_left"};
+      return "gameoverse_poi_discovery.relative." + relative[(int) Math.round(angle / 45.0) % 8];
    }
 
    private static String distanceBucket(double distance) {
